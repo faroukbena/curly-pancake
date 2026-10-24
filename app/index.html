@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WOLO-PURE</title>
+<style>body{font:18px/1.5 system-ui,sans-serif;max-width:46rem;margin:0 auto;padding:1rem;color:#1a1a1a;background:#fffdf7}
+button,select,input,textarea{font:inherit;padding:.6rem 1rem;margin:.2rem;min-height:44px}button{background:#1d4e89;color:#fff;border:0;border-radius:8px;cursor:pointer}button.alt{background:#fff;color:#1d4e89;border:2px solid #1d4e89}
+button:focus,input:focus,select:focus,textarea:focus{outline:3px solid #f5a623}.card{border:2px solid #ccc;border-radius:12px;padding:1rem;margin:1rem 0;background:#fff}.banner{background:#fff3cd;padding:.6rem;border-radius:8px}
+nav button{margin:.1rem}.err{color:#a00}.warn{color:#7a5200}</style></head><body>
+<h1>WOLO-PURE</h1>
+<p class="banner"><b>IMPLEMENTATION STATUS:</b> local demo. Data stays in this browser only (localStorage); nothing is synced, no accounts. Prompts are <b>illustrative</b> and contain no heritage facts. Cadence is a <b>PRODUCT HYPOTHESIS</b>.</p>
+<nav aria-label="Sections"><button data-v="play">Play together</button><button data-v="stories">Family stories</button><button data-v="progress">Progress</button><button data-v="print">Print &amp; play</button></nav>
+<main id="main" aria-live="polite"></main>
+<script src="logic.js"></script>
+<script>
+const K='wolo-demo',W=window.WOLO;
+const S=JSON.parse(localStorage.getItem(K)||'null')||{activities:[],sessions:[],learned:[],items:[],steps:0,idx:0};
+const save=()=>localStorage.setItem(K,JSON.stringify(S));
+const $=h=>document.getElementById('main').innerHTML=h;
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function play(){const p=W.PROMPTS[S.idx%W.PROMPTS.length];
+ $(`<h2>Shared journey: ${S.steps} steps together</h2><div class=card><small>${p.cat}</small><p><b>${esc(p.text)}</b></p><details><summary>Hint</summary>${esc(p.hint)}</details>
+ <button onclick="ans('joined')">We did it</button><button class=alt onclick="ans('pass')">Pass</button><button class=alt onclick="ans('listen')">Listen only</button><button class=alt onclick="ans('not-recorded');">Choose another</button></div>
+ <p>Not remembering yet is fine. Missed days carry no penalty. Steps count teamwork, never individuals.</p>`)}
+function ans(r){S.activities.push({prompt:W.PROMPTS[S.idx%W.PROMPTS.length].id,response:r});if(r==='joined')S.steps++;S.idx++;save();play()}
+function stories(msg){const list=W.visibleItems(S.items,'household');
+ $(`<h2>Family stories &amp; knowledge</h2>${msg||''}<form id=f class=card><label>Title<br><input name=title></label><br><label>Contributor/pseudonym<br><input name=contributor></label><br>
+ <label>Story or note<br><textarea name=body rows=3></textarea></label><br><label>Evidence<br><select name=evidence>${W.EVIDENCE.map(e=>`<option>${e}</option>`)}</select></label><br>
+ <label>Source citation (if any)<br><input name=cite></label><br><label>Visibility<br><select name=scope><option value=private-to-contributor>Private to contributor (default)</option><option value=household>Invited household</option></select></label><br>
+ <label>Consent given by<br><input name=by></label><br><label><input type=checkbox name=sacred> This is sacred/restricted/community-governed</label><br><button>Save</button></form>
+ <h3>Household-visible items</h3>${list.map((i,n)=>`<div class=card><b>${esc(i.title)}</b> <small>[${i.evidence}]</small><p>${esc(i.body)}</p><button class=alt onclick="wd(${S.items.indexOf(i)})">Withdraw</button></div>`).join('')||'<p>Nothing yet.</p>'}`);
+ f.onsubmit=e=>{e.preventDefault();const d=new FormData(f);const it={title:d.get('title'),contributor:d.get('contributor'),body:d.get('body'),evidence:d.get('evidence'),scope:d.get('scope'),sacred:!!d.get('sacred'),designatedForSharing:d.get('scope')!=='private-to-contributor',
+  source:d.get('cite')?{citation:d.get('cite')}:null,consent:d.get('by')?{givenBy:d.get('by'),date:new Date().toISOString().slice(0,10)}:null,status:'saved',history:[]};
+  const v=W.validateItem(it);if(!v.ok)return stories(`<p class=err>${v.errors.map(esc).join('<br>')}</p>`);S.items.push(it);save();stories(`<p class=warn>Saved. ${v.warnings.map(esc).join(' ')}</p>`)}}
+function wd(i){S.items[i]=W.withdraw(S.items[i],new Date().toISOString());save();stories('<p>Withdrawn: content removed. Printed or downloaded copies cannot be recalled.</p>')}
+function progress(){const k=W.kpis(S),f=v=>v===null?'no data yet':v+'%';
+ $(`<h2>Progress (opt-in, family-level)</h2><div class=card><p><b>Activities offered:</b> ${k.offered}</p><p><b>Voluntary participation rate:</b> ${f(k.voluntaryParticipationRate)}<br><small>Joined ÷ activities with a recorded response (pass counts, not-recorded excluded). Source: Play together responses. Limits: product measure only; not a measure of wellbeing, culture or learning.</small></p>
+ <p><b>Shared session completion:</b> ${f(k.sessionCompletion)}</p><p><b>Review coverage:</b> ${f(k.reviewCoverage)}</p><p><b>Consent completeness:</b> ${f(k.consentCompleteness)}</p></div>
+ <button class=alt onclick="if(confirm('Delete all local data?')){localStorage.removeItem(K);location.reload()}">Delete all local data</button>`)}
+function pr(){$(`<h2>Print &amp; play</h2><p><a href="../print/kit.html">Printable kit (template, not fully generated art)</a>: rules, path, cards, tokens, tracker.</p>`)}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>({play,stories,progress,print:pr}[b.dataset.v])());play();
+</script></body></html>
