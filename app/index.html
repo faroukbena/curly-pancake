@@ -6,12 +6,12 @@ button:focus,input:focus,select:focus,textarea:focus{outline:3px solid #f5a623}.
 nav button{margin:.1rem}.err{color:#a00}.warn{color:#7a5200}</style></head><body>
 <h1>WOLO-PURE</h1>
 <p class="banner"><b>IMPLEMENTATION STATUS:</b> local demo. Data stays in this browser only (localStorage); nothing is synced, no accounts. Prompts are <b>illustrative</b> and contain no heritage facts. Cadence is a <b>PRODUCT HYPOTHESIS</b>.</p>
-<nav aria-label="Sections"><button data-v="play">Play together</button><button data-v="stories">Family stories</button><button data-v="progress">Progress</button><button data-v="print">Print &amp; play</button></nav>
+<nav aria-label="Sections"><button data-v="play">Play together</button><button data-v="stories">Family stories</button><button data-v="journey">Learning journey</button><button data-v="streams">Heritage streams</button><button data-v="lang">Language practice</button><button data-v="progress">Progress</button><button data-v="settings">Settings</button><button data-v="print">Print &amp; play</button></nav>
 <main id="main" aria-live="polite"></main>
 <script src="logic.js"></script>
 <script>
 const K='wolo-demo',W=window.WOLO;
-const S=JSON.parse(localStorage.getItem(K)||'null')||{activities:[],sessions:[],learned:[],items:[],steps:0,idx:0};
+const S=JSON.parse(localStorage.getItem(K)||'null')||{activities:[],sessions:[],learned:[],items:[],steps:0,idx:0,streams:[],langLog:[],goals:{},skipped:[],notExcluded:[],settings:{scoring:true,quiet:"21:00-07:00",faith:false,largeText:false}};
 const save=()=>localStorage.setItem(K,JSON.stringify(S));
 const $=h=>document.getElementById('main').innerHTML=h;
 const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -33,7 +33,37 @@ function wd(i){S.items[i]=W.withdraw(S.items[i],new Date().toISOString());save()
 function progress(){const k=W.kpis(S),f=v=>v===null?'no data yet':v+'%';
  $(`<h2>Progress (opt-in, family-level)</h2><div class=card><p><b>Activities offered:</b> ${k.offered}</p><p><b>Voluntary participation rate:</b> ${f(k.voluntaryParticipationRate)}<br><small>Joined ÷ activities with a recorded response (pass counts, not-recorded excluded). Source: Play together responses. Limits: product measure only; not a measure of wellbeing, culture or learning.</small></p>
  <p><b>Shared session completion:</b> ${f(k.sessionCompletion)}</p><p><b>Review coverage:</b> ${f(k.reviewCoverage)}</p><p><b>Consent completeness:</b> ${f(k.consentCompleteness)}</p></div>
- <button class=alt onclick="if(confirm('Delete all local data?')){localStorage.removeItem(K);location.reload()}">Delete all local data</button>`)}
+ <h3>Measure dictionary</h3>${W.KPI_DICTIONARY.map(d=>`<details><summary>${d.name}</summary>Formula: ${d.formula}<br>Source: ${d.source}; period: ${d.period}<br>Limits: ${d.limits}</details>`).join('')}<p><small>Product measures only; not validated measures of health, culture, family quality or learning.</small></p><button class=alt onclick="if(confirm('Delete all local data?')){localStorage.removeItem(K);location.reload()}">Delete all local data</button>`)}
 function pr(){$(`<h2>Print &amp; play</h2><p><a href="../print/kit.html">Printable kit (template, not fully generated art)</a>: rules, path, cards, tokens, tracker.</p>`)}
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>({play,stories,progress,print:pr}[b.dataset.v])());play();
+
+S.streams=S.streams||[];S.langLog=S.langLog||[];S.goals=S.goals||{};S.skipped=S.skipped||[];S.excluded=S.excluded||[];S.settings=S.settings||{};
+const today=()=>new Date().toISOString().slice(0,10);
+function journey(){const m=new Date().getMonth(),th=W.suggestTheme(m,S.skipped),due=W.dueReviews(S.learned,today());
+ $(`<h2>Learning journey</h2><div class=card><b>Suggested monthly theme:</b> ${esc(th||'none (all skipped)')}<br><small>A rotation suggestion only. Skip any theme below.</small><div>${W.THEMES.map(t=>`<label><input type=checkbox ${S.skipped.includes(t)?'checked':''} onchange="skipT('${t}')"> skip ${t}</label>`).join(' ')}</div></div>
+ <div class=card><h3>Add a learned item</h3><form id=lf><input name=n placeholder="word, question or story detail" aria-label="learned item"><button>Add</button></form><p><small>Review cadence ${W.DEFAULT_CADENCE.join('/')} days is a PRODUCT HYPOTHESIS. Mark an item to skip reviews.</small></p></div>
+ <div class=card><h3>Due for a gentle revisit (${due.length})</h3>${due.map(l=>`<p>${esc(l.name)} <button onclick="rev(${S.learned.indexOf(l)})">Revisited</button><button class=alt onclick="S.learned[${S.learned.indexOf(l)}].skipReviews=true;save();journey()">Skip reviews</button></p>`).join('')||'Nothing due. No pressure.'}</div>
+ <div class=card><h3>Weekly session</h3><button onclick="sess(false)">Plan a session</button><button class=alt onclick="sess(true)">Mark one completed</button><p>Planned: ${S.sessions.length}; completed: ${S.sessions.filter(x=>x.completed).length}</p></div>
+ <p><small>Quarterly review and annual showcase: PLANNED, not built. Use the print kit progress sheet for now.</small></p>`);
+ lf.onsubmit=e=>{e.preventDefault();if(!lf.n.value.trim())return;S.learned.push({name:lf.n.value.trim(),learnedOn:today(),reviews:0});save();journey()}}
+function skipT(t){S.skipped=S.skipped.includes(t)?S.skipped.filter(x=>x!==t):S.skipped.concat(t);save();journey()}
+function rev(i){S.learned[i].reviews++;save();journey()}
+function sess(done){S.sessions.push({completed:done,date:today()});save();journey()}
+function streams(){$(`<h2>Heritage streams</h2><p>Family-defined, any number, optional. Names are yours; none are pre-filled and none implies uniform customs.</p>
+ <form id=sf><input name=n placeholder="stream name in your own words" aria-label="stream name"><button>Add</button></form>
+ ${S.streams.map((x,i)=>`<div class=card>${esc(x)} <button class=alt onclick="S.streams.splice(${i},1);save();streams()">Remove</button></div>`).join('')||'<p>No streams yet. That is fine.</p>'}
+ <h3>Not for this app</h3><p><small>Topics you mark here are excluded from prompts and submissions.</small></p><form id=xf><input name=n placeholder="topic to exclude" aria-label="excluded topic"><button>Mark</button></form>${S.excluded.map(x=>`<span class=card>${esc(x)}</span>`).join(' ')}
+ <h3>Contribution balance (invitation to review, not a quota)</h3><p>${S.items.filter(i=>i.status!=='withdrawn').length} items saved.</p>`);
+ sf.onsubmit=e=>{e.preventDefault();if(sf.n.value.trim()){S.streams.push(sf.n.value.trim());save();streams()}};xf.onsubmit=e=>{e.preventDefault();if(xf.n.value.trim()){S.excluded.push(xf.n.value.trim());save();streams()}}}
+function lang(){const who=S.langPerson||'';const g=S.goals[who]||0,c=W.languageConsistency(S.langLog.filter(e=>e.who===who),g,today());
+ $(`<h2>Language practice</h2><p>Private self-assessment. Confidence is self-reported, not fluency. No comparisons between people.</p>
+ <form id=lg class=card><label>Who<br><input name=who value="${esc(who)}"></label><br><label>Language or dialect<br><input name=l></label><br><label>Skill<br><select name=s><option>recognition</option><option>pronunciation</option><option>speaking or signing</option><option>reading or writing</option><option>using in context</option><option>teaching (with permission)</option></select></label><br><label>Confidence (self-rated)<br><select name=c><option value=1>1 not yet</option><option value=2>2</option><option value=3>3</option><option value=4>4</option><option value=5>5 comfortable</option></select></label><br><button>Log practice</button></form>
+ <label>Own goal: practice days per week<br><input id=gd type=number min=0 max=7 value=${g}></label><button class=alt onclick="S.goals[S.langPerson||'']=+gd.value;save();lang()">Set goal</button>
+ <p>${c?`This week: ${c.days} day(s) of your goal of ${c.goal}. ${c.met?'Goal met.':'No worries, any practice counts.'}`:'No goal set (optional).'}</p>
+ <p>Entries for this person: ${S.langLog.filter(e=>e.who===who).length}</p>`);
+ lg.onsubmit=e=>{e.preventDefault();S.langPerson=lg.who.value.trim();S.langLog.push({who:S.langPerson,lang:lg.l.value,skill:lg.s.value,conf:+lg.c.value,date:today()});save();lang()}}
+function settings(){const st=S.settings;
+ $(`<h2>Family settings</h2><div class=card><label><input type=checkbox ${st.scoring?'checked':''} onchange="S.settings.scoring=this.checked;save()"> Show shared step counter (optional)</label><br><label><input type=checkbox ${st.faith?'checked':''} onchange="S.settings.faith=this.checked;save()"> Enable optional faith/values modules (off by default; no content built yet)</label><br><label><input type=checkbox ${st.largeText?'checked':''} onchange="S.settings.largeText=this.checked;save();document.body.style.fontSize=this.checked?'24px':''"> Larger text</label><br><label>Quiet hours (no notifications; none are sent by this demo)<br><input value="${esc(st.quiet||'')}" onchange="S.settings.quiet=this.value;save()"></label></div>
+ <p><small>Roles, guardian controls, report/mute/block flow: PLANNED, not built. This demo has one shared browser profile.</small></p>`)}
+if(S.settings.largeText)document.body.style.fontSize='24px';
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>({play,stories,progress,print:pr,journey,streams,lang,settings}[b.dataset.v])());play();
 </script></body></html>

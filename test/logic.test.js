@@ -16,3 +16,8 @@ t('kpis handle empty and pass', () => {
   assert.strictEqual(k.offered, 3); assert.strictEqual(k.voluntaryParticipationRate, 50); assert.strictEqual(k.sessionCompletion, null);
 });
 console.log(n + ' tests passed');
+t('theme rotation honours skips', () => { assert.strictEqual(W.suggestTheme(0, ['Languages']), 'Oral history'); assert.strictEqual(W.suggestTheme(0, W.THEMES), null); });
+t('due reviews', () => { const l = [{ learnedOn: '2026-01-01', reviews: 0 }, { learnedOn: '2026-01-01', reviews: 0, skipReviews: true }]; assert.strictEqual(W.dueReviews(l, '2026-01-04').length, 1); assert.strictEqual(W.dueReviews(l, '2025-12-31').length, 0); });
+t('language consistency own goal', () => { assert.strictEqual(W.languageConsistency([], 0, '2026-01-07'), null); const r = W.languageConsistency([{ date: '2026-01-05' }, { date: '2026-01-06' }, { date: '2025-12-01' }], 2, '2026-01-07'); assert.deepStrictEqual(r, { days: 2, goal: 2, met: true }); });
+t('kpi dictionary complete', () => W.KPI_DICTIONARY.forEach(k => assert(k.formula && k.limits && k.source && k.period)));
+console.log('extended tests passed');

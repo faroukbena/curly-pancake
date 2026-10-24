@@ -59,6 +59,31 @@
       consentCompleteness: pct(shareable.filter(i => validateItem(i).ok).length, shareable.length)
     };
   }
-  const api = { EVIDENCE, SCOPES, DEFAULT_CADENCE, PROMPTS, validateItem, withdraw, visibleItems, nextReviewDate, kpis };
+
+  const THEMES = ['Languages', 'Oral history', 'History', 'Arts', 'Foodways', 'Traditions', 'Values', 'Contemporary life'];
+  // Suggests a balanced rotation only; never infers which cultures to study. Family may override.
+  function suggestTheme(monthIndex, skipped) {
+    skipped = skipped || [];
+    const pool = THEMES.filter(t => !skipped.includes(t));
+    return pool.length ? pool[((monthIndex % pool.length) + pool.length) % pool.length] : null;
+  }
+  function dueReviews(learned, todayISO, cadence) {
+    return learned.filter(l => !l.skipReviews).filter(l => { const n = nextReviewDate(l.learnedOn, l.reviews || 0, cadence); return n && n <= todayISO; });
+  }
+  // Practice days in the last 7 days against the person's OWN goal; null if no goal set.
+  function languageConsistency(log, goalDays, todayISO) {
+    if (!goalDays) return null;
+    const end = new Date(todayISO).getTime(), start = end - 6 * 864e5;
+    const days = new Set(log.filter(e => { const t = new Date(e.date).getTime(); return t >= start && t <= end; }).map(e => e.date));
+    return { days: days.size, goal: goalDays, met: days.size >= goalDays };
+  }
+  const KPI_DICTIONARY = [
+    { id: 'offered', name: 'Participation opportunities offered', formula: 'count of activities shown', source: 'Play together log', period: 'all time (local)', limits: 'Counts offers, not quality or need.' },
+    { id: 'voluntaryParticipationRate', name: 'Voluntary participation rate', formula: 'joined / activities with a recorded response (pass counts as a response; not-recorded excluded)', source: 'Play together log', period: 'all time (local)', limits: 'Passing is healthy; a low rate is not a failure. Not a wellbeing measure.' },
+    { id: 'sessionCompletion', name: 'Shared session completion', formula: 'sessions completed / sessions planned', source: 'Learning planner', period: 'all time (local)', limits: 'Plans may change for good reasons.' },
+    { id: 'reviewCoverage', name: 'Learning review coverage', formula: 'learned items revisited at least once / learned items', source: 'Learning planner', period: 'all time (local)', limits: 'Revisiting is not mastery.' },
+    { id: 'consentCompleteness', name: 'Consent completeness', formula: 'shareable items passing consent validation / items designated for sharing', source: 'Family stories', period: 'all time (local)', limits: 'Records that consent was logged, not that it was truly informed.' }
+  ];
+  const api = { THEMES, suggestTheme, dueReviews, languageConsistency, KPI_DICTIONARY, EVIDENCE, SCOPES, DEFAULT_CADENCE, PROMPTS, validateItem, withdraw, visibleItems, nextReviewDate, kpis };
   if (typeof module !== 'undefined') module.exports = api; else root.WOLO = api;
 })(this);
